@@ -20,21 +20,9 @@
 #include <iomanip>
 
 #include <boost/lexical_cast.hpp>
-#define SMALL_READ_BUF 1024
 
-template<typename Out>
-void split(const std::string &s, char delim, Out result) {
-    std::stringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) {
-        *(result++) = item;
-    }
-}
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
-    split(s, delim, std::back_inserter(elems));
-    return elems;
-}
+#include <utils.hh>
+#define SMALL_READ_BUF 1024
 
 using host_t = std::string;
 
