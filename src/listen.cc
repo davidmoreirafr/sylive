@@ -276,8 +276,8 @@ do_connect(std::string const& address, const short port) {
   return sockfd;
 }
 
-void
-do_read(const int sockfd) {
+int
+do_read(imsgbuf *, const int sockfd) {
   char buf[SMALL_READ_BUF];
   std::string current_line;
 
@@ -300,4 +300,5 @@ do_read(const int sockfd) {
       }
     }
   }
+  return -1;
 }
