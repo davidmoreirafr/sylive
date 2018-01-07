@@ -1,0 +1,39 @@
+outdir = ./_build
+srcdir = ./src
+testsdir = ./tests
+cxxflags = -Wall -Wextra -std=gnu++14 -I$srcdir -I$outdir -fPIC -g -ggdb
+ldflags = -L$outdir/
+cpp=eg++
+rule cpp
+     depfile = $out.d
+     command = $cpp $cxxflags -MMD -MF $out.d -c $in -o $out
+     description = $cpp -o $out
+
+rule lcpp
+     description = $cpp -o $out
+     command = $cpp $cxxflags $ldflags $in -o$out
+
+rule bison
+     command = ./bison $out $in
+
+rule flex
+     command = ./flex $out $in
+
+rule sharedcpp
+     command = mkdir -p $outdir && $cpp $cxxflags -shared $in -o$out
+
+rule staticcpp
+     command = mkdir -p $outdir && ar rcs $out $in
+
+rule ok
+     command = ./checks 0 $in
+
+rule ko
+     command = ./checks 42 $in
+
+build $outdir/listen.o: cpp $srcdir/listen.cc
+build $outdir/sylive.o: cpp $srcdir/sylive.cc
+
+build sylive: lcpp $
+ $outdir/listen.o $
+ $outdir/sylive.o
