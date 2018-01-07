@@ -199,18 +199,6 @@ todouble(std::string const& str) {
   return boost::lexical_cast<double>(str);
 }
 
-std::string
-dns(std::string const& host) {
-  static std::map<std::string, std::string> dns_;
-  if (dns_.empty()) {
-    dns_["172.16.0.1"] = "sernial";
-    dns_["172.16.0.2"] = "arakis1";
-    dns_["172.16.0.3"] = "cthulhu";
-    dns_["172.16.0.6"] = "arakis0";
-  }
-  return dns_[host];
-}
-
 void
 treat_line(std::string const& line) {
   static std::map<host_t, datum_t> data;
@@ -274,7 +262,7 @@ treat_line(std::string const& line) {
     }
   }
   
-  data[dns(host)] = datum;
+  data[host] = datum;
   print(data);
 }
 
