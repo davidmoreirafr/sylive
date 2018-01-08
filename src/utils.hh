@@ -29,9 +29,9 @@ inline
 double
 membyte(unsigned long long ll) {
   double d = ll;
-  while (d > 9999) {
+  do {
     d /= 1024;
-  }
+  } while (d > 9999);
   return d;
 }
 
