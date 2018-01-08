@@ -47,3 +47,26 @@ membyte_unit(unsigned long long ll) {
   } while (d > 9999);
   return unit[ct];
 }
+
+inline
+double
+byte(unsigned long long ll) {
+  double d = ll;
+  while (d > 9999) {
+    d /= 1024;
+  }
+  return d;
+}
+
+inline
+char
+byte_unit(unsigned long long ll) {
+  const static char *unit = " kmgtep";
+  int ct = 0;
+  double d = ll;
+  while (d > 9999) {
+    d /= 1024;
+    ++ct;
+  }
+  return unit[ct];
+}

@@ -98,25 +98,29 @@ cpu_view(unsigned &line,
   user = nice = system = interrupt = idle = 0;
 
   int cpu_number = 0;
+  bool first = true;
   for (cpu_t cpu: cpus) {
-    if (param.detailed_cpu)
+    if (param.detailed_cpu) {
       mvprintw(line++, 0, "%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
-	       hostname.c_str(),
+	       first ? hostname.c_str() : "\t",
 	       cpu_number,
 	       cpu.user,
 	       cpu.nice,
 	       cpu.system,
 	       cpu.interrupt,
 	       cpu.idle);
+      first = false;
+    }
     user += cpu.user;
     nice += cpu.nice;
     system += cpu.system;
     interrupt += cpu.interrupt;
     idle += cpu.idle;
     ++cpu_number;
+
   }
   mvprintw(line++, 0, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
-	   hostname.c_str(),
+	   first ? hostname.c_str() : "\t",
 	   user / cpu_number,
 	   nice / cpu_number,
 	   system / cpu_number,
@@ -174,13 +178,43 @@ mem_view(unsigned &line, std::string const& hostname, mem_t const& mem) {
 }
 
 void
+show_nics(unsigned &line, std::string const& hostname, std::map<std::string, if_t> const& nics) {
+  char l[1024];
+  bool first = true;
+  for (std::pair<std::string, if_t> nic: nics) {
+    snprintf(l, 1024, "%s\t%s\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c",
+	     first ? hostname.c_str() : "\t",
+	     nic.first.c_str(),
+	     membyte(nic.second.ipackets),
+	     membyte_unit(nic.second.ipackets),
+	     membyte(nic.second.opackets),
+	     membyte_unit(nic.second.opackets),
+	     membyte(nic.second.ibytes),
+	     membyte_unit(nic.second.ibytes),
+	     membyte(nic.second.obytes),
+	     membyte_unit(nic.second.obytes),
+	     byte(nic.second.ierrors),
+	     byte_unit(nic.second.ierrors),
+	     byte(nic.second.oerrors),
+	     byte_unit(nic.second.oerrors),
+	     byte(nic.second.collisions),
+	     byte_unit(nic.second.collisions),
+	     byte(nic.second.drops),
+	     byte_unit(nic.second.drops)
+	     );
+    first = false;
+    mvprintw(line++, 0, l);
+  }
+}
+
+void
 print(std::map<std::string, datum_t> data) {
   clear();
 
   unsigned line = 0;
   display_date(line);
 
-  mvprintw(line++, 0, "HOST\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE");
+  mvprintw(line++, 0, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE");
   // display cpus
   for (std::pair<std::string, datum_t> datum: data)
     cpu_view(line, datum.first, datum.second.cpus);
@@ -188,7 +222,7 @@ print(std::map<std::string, datum_t> data) {
 
   if (param.show_mem) {
     // display mem
-    mvprintw(line++, 0, "HOST\t\tREAL\t\tFREE\tSWAP");
+    mvprintw(line++, 0, "Mem\t\tREAL\t\tFREE\tSWAP");
     for (std::pair<std::string, datum_t> datum: data) {
       mem_view(line, datum.first, datum.second.mem);
     }
@@ -196,13 +230,16 @@ print(std::map<std::string, datum_t> data) {
   }
 
   if (param.show_procs) {
-    mvprintw(line++, 0, "HOST\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC");
+    mvprintw(line++, 0, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC");
     for (std::pair<std::string, datum_t> datum: data)
       proc_view(line, datum.first, datum.second.procs);
     line++;
   }
 
   if (param.show_nics) {
+    mvprintw(line++, 0, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS");
+    for (std::pair<std::string, datum_t> datum: data)
+      show_nics(line, datum.first, datum.second.nics);
   }
   refresh();
 }
@@ -228,14 +265,16 @@ update_parameters() {
     case 'c':
       param.detailed_cpu = !param.detailed_cpu;
       break;
+    case 'i':
+      param.show_nics = !param.show_nics;
     case 'm':
       param.show_mem = !param.show_mem;
       break;
-    case 'p':
-      param.show_procs = !param.show_procs;
-      break;
     case 'n':
       param.show_nics = !param.show_nics;
+      break;
+    case 'p':
+      param.show_procs = !param.show_procs;
       break;
     case 'q':
       endwin();
@@ -274,7 +313,7 @@ treat_line(std::string const& line) {
       datum.cpus[cpu].user = todouble(measure[3]);
       datum.cpus[cpu].nice = todouble(measure[4]);
       datum.cpus[cpu].system = todouble(measure[5]);
-      datum.cpus[cpu].interrupt = todouble(measure[5]);
+      datum.cpus[cpu].interrupt = todouble(measure[6]);
       datum.cpus[cpu].idle = todouble(measure[7]);
     }
     else if (measure[0] == "if") {
