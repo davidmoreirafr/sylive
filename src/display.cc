@@ -63,47 +63,51 @@ struct proc_t {
   long long rsssz;
 };
 
+struct mem_t {
+  unsigned long long real_active;
+  unsigned long long real_total;
+  unsigned long long free;
+  unsigned long long swap_used;
+  unsigned long long swap_total;
+};
+
 struct datum_t {
   std::vector<cpu_t> cpus;
   std::map<std::string, double> sensors;
   std::map<std::string, if_t> nics;
   std::map<std::string, proc_t> procs;
+  mem_t mem;
 };
 
-void
-display_cpu(std::ostream &ost,
-	    int nb,
-	    double user, double nice, double system, double interrupt, double idle) {
-  if (nb >= 0)
-    ost << "cpu" << nb << ": ";
-  else
-    ost << "cpu: ";
-  ost << user << "% user, "
-      << nice << "% nice, "
-      << system << "% system, "
-      << interrupt << "% interrupt, "
-      << idle << "% idle" << std::endl;
-}
+
+struct param_t {
+  bool detailed_cpu;
+  bool show_mem;
+  bool show_procs;
+  bool show_nics;
+  unsigned width, height;
+};
+
+static param_t param;
 
 void
-cpu_view(std::ostream &ost,
+cpu_view(unsigned &line,
 	 std::string const& hostname,
-	 std::vector<cpu_t> const& cpus,
-	 bool extended_view) {
+	 std::vector<cpu_t> const& cpus) {
   double user, nice ,system, interrupt, idle;
   user = nice = system = interrupt = idle = 0;
 
   int cpu_number = 0;
   for (cpu_t cpu: cpus) {
-    if (extended_view)
-      ost << hostname
-	  << "\t" << cpu_number
-	  << "\t" << cpu.user
-	  << "\t" << cpu.nice
-	  << "\t" << cpu.system
-	  << "\t" << cpu.interrupt
-	  << "\t\t" << cpu.idle
-	  << std::endl;
+    if (param.detailed_cpu)
+      mvprintw(line++, 0, "%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+	       hostname.c_str(),
+	       cpu_number,
+	       cpu.user,
+	       cpu.nice,
+	       cpu.system,
+	       cpu.interrupt,
+	       cpu.idle);
     user += cpu.user;
     nice += cpu.nice;
     system += cpu.system;
@@ -111,84 +115,135 @@ cpu_view(std::ostream &ost,
     idle += cpu.idle;
     ++cpu_number;
   }
-  ost << hostname
-      << "\t" << " "
-      << "\t" << user / cpu_number
-      << "\t" << nice / cpu_number
-      << "\t" << system / cpu_number
-      << "\t" << interrupt / cpu_number
-      << "\t\t" << idle / cpu_number
-      << std::endl;
+  mvprintw(line++, 0, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+	   hostname.c_str(),
+	   user / cpu_number,
+	   nice / cpu_number,
+	   system / cpu_number,
+	   interrupt / cpu_number,
+	   idle / cpu_number);
 }
 
 void
-byte(std::ostream &ost, long long ll) {
-  const static std::string unit = " kmgtep";
-  int ct = 0;
-  double d = ll;
-  while (d > 999) {
-    d /= 1024;
-    ++ct;
-  }
-  ost << std::setprecision(2)
-      << d
-      << std::setprecision(1);
-  if (ct)
-    ost << unit[ct];
-}
-
-void
-proc_view(std::ostream &ost, std::string const& hostname, std::map<std::string, proc_t> procs) {
+proc_view(unsigned &line, std::string const& hostname, std::map<std::string, proc_t> procs) {
+  char l[1024];
   for (std::pair<std::string, proc_t> proc: procs) {
-    ost << proc.first
-	<< "\t" << hostname
-	<< "\t" << proc.second.uticks
-	<< "\t" << proc.second.sticks
-	<< "\t" << proc.second.iticks
-	<< "\t" << proc.second.cpusec
-	<< "\t" << proc.second.cpupct
-	<< "\t";
-    byte(ost, proc.second.procsz);
-    ost << "\t";
-    byte(ost, proc.second.rsssz);
-    ost << std::endl;
+    snprintf(l, 1023,
+	     "%s\t%d\t%d\t%d\t%d\t%d\t",
+	     hostname.c_str(),
+	     proc.second.uticks,
+	     proc.second.sticks,
+	     proc.second.iticks,
+	     proc.second.cpusec,
+	     proc.second.cpupct,
+	     proc.first.c_str());
+    byte(l, proc.second.procsz);
+    strlcat(l, "\t", 1023);
+    byte(l, proc.second.rsssz);
+    strlcat(l, "\t", 1023);
+    strlcat(l, proc.first.c_str(), 1023);
+
+    mvprintw(line++, 0, l);
   }
+}
+
+void
+display_date(unsigned &line) {
+  time_t tod = time(NULL);
+  char *ctod = ctime(&tod);
+  mvprintw(line++, param.width - strlen(ctod) + 1, "%s", ctod);
+}
+
+void
+mem_view(unsigned &line, std::string const& hostname, mem_t const& mem) {
+  char l[1024];
+  snprintf(l, 1024, "%s\t%.0f%c/%.0f%c\t%.0f%c\t%.0f%c/%.0f%c",
+	   hostname.c_str(),
+	   membyte(mem.real_active),
+	   membyte_unit(mem.real_active),
+	   membyte(mem.real_total),
+	   membyte_unit(mem.real_total),
+	   membyte(mem.free),
+	   membyte_unit(mem.free),
+	   membyte(mem.swap_used),
+	   membyte_unit(mem.swap_used),
+	   membyte(mem.swap_total),
+	   membyte_unit(mem.swap_total)
+	   );
+  mvprintw(line++, 0, l);
 }
 
 void
 print(std::map<std::string, datum_t> data) {
-  std::cout << "host" << "\t\t"
-	    << "#" << "\t"
-	    << "User" << "\t"
-	    << "Nice" << "\t"
-	    <<"System" << "\t"
-	    << "Interrupt" << "\t"
-	    <<"Idle" << std::endl;
+  clear();
+
+  unsigned line = 0;
+  display_date(line);
+
+  mvprintw(line++, 0, "HOST\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE");
+  // display cpus
   for (std::pair<std::string, datum_t> datum: data)
-    cpu_view(std::cout, datum.first, datum.second.cpus, false);
-  std::cout << std::endl;
+    cpu_view(line, datum.first, datum.second.cpus);
+  line++;
 
-  std::cout
-    << "proc"
-    << "\t" << "host" << "\t"
-    << "\t" << "uticks"
-    << "\t" << "sticks"
-    << "\t" << "iticks"
-    << "\t" << "cpusec"
-    << "\t" << "cpupct"
-    << "\t" << "procsz"
-    << "\t" << "rsssz"
-    << std::endl;
+  if (param.show_mem) {
+    // display mem
+    mvprintw(line++, 0, "HOST\t\tREAL\t\tFREE\tSWAP");
+    for (std::pair<std::string, datum_t> datum: data) {
+      mem_view(line, datum.first, datum.second.mem);
+    }
+    line++;
+  }
 
-  for (std::pair<std::string, datum_t> datum: data)
-    proc_view(std::cout, datum.first, datum.second.procs);
-  std::cout << std::endl;
+  if (param.show_procs) {
+    mvprintw(line++, 0, "HOST\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC");
+    for (std::pair<std::string, datum_t> datum: data)
+      proc_view(line, datum.first, datum.second.procs);
+    line++;
+  }
 
+  if (param.show_nics) {
+  }
+  refresh();
 }
 
 double
 todouble(std::string const& str) {
   return boost::lexical_cast<double>(str);
+}
+
+unsigned long long
+toull(std::string const& str) {
+  return boost::lexical_cast<unsigned long long>(str);
+}
+
+void
+update_parameters() {
+  param.height = LINES;
+  param.width = COLS;
+
+  while (true) {
+    int key = getch();
+    switch (key) {
+    case 'c':
+      param.detailed_cpu = !param.detailed_cpu;
+      break;
+    case 'm':
+      param.show_mem = !param.show_mem;
+      break;
+    case 'p':
+      param.show_procs = !param.show_procs;
+      break;
+    case 'n':
+      param.show_nics = !param.show_nics;
+      break;
+    case 'q':
+      endwin();
+      std::exit(0);
+    }
+    if (key == ERR)
+      break;
+  }
 }
 
 void
@@ -203,7 +258,6 @@ treat_line(std::string const& line) {
     return;
 
   std::string host = splitted_line.front();
-  //std::cout << "receiving datum for: " << splitted_line.front() << std::endl;
   splitted_line.pop_front();
 
   for (std::string measure_raw: splitted_line) {
@@ -249,21 +303,37 @@ treat_line(std::string const& line) {
       datum.procs[measure[1]].procsz = todouble(measure[9]);
       datum.procs[measure[1]].rsssz = todouble(measure[10]);      
     }
+    else if (measure[0] == "mem") {
+      datum.mem.real_active = toull(measure[3]);
+      datum.mem.real_total = toull(measure[4]);
+      datum.mem.free = toull(measure[5]);
+      datum.mem.swap_used = toull(measure[6]);
+      datum.mem.swap_total = toull(measure[7]);
+    }
     else {
-      std::cerr << "unknown measure: " << measure_raw << std::endl;
+      //std::cerr << "unknown measure: " << measure_raw << std::endl;
     }
   }
   
   data[host] = datum;
+  update_parameters();
   print(data);
 }
 
 void
 do_display(imsgbuf *ibuf) {
-  // initscr();
-  // raw();
-  // keypad(stdscr, TRUE);
-  // noecho();
+  {
+    param.detailed_cpu = false;
+    param.show_mem = true;
+    param.show_procs = true;
+    param.show_nics = false;
+  }
+
+  initscr();
+  //raw();
+  //keypad(stdscr, TRUE);
+  nodelay(stdscr, TRUE);
+  noecho();
 
   for (;;) {
     imsg imsg;
@@ -274,7 +344,7 @@ do_display(imsgbuf *ibuf) {
       err(1, "imsg_read");
     }
     if (n == 0) {
-      std::cout << "imsg_read connection out" << std::endl;
+      //std::cout << "imsg_read connection out" << std::endl;
       return;
     }
 
@@ -294,7 +364,7 @@ do_display(imsgbuf *ibuf) {
 	break;
       }
       default:
-	std::cout << "Unknown message" << std::endl;
+	//std::cout << "Unknown message" << std::endl;
 	std::exit(42);
       }
       imsg_free(&imsg);
