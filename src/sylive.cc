@@ -17,7 +17,7 @@ int do_display(imsgbuf *); // FIXME
 
 int main(int argc, char *argv[])
 {
-  if (pledge("stdio inet proc", NULL))
+  if (pledge("stdio inet proc rpath tty", NULL))
     err(2, "pledge");
   if (argc == 3) {
     int imsg_fds[2];
@@ -28,8 +28,7 @@ int main(int argc, char *argv[])
     case -1:
       err(1, "fork");
     case 0:
-      /*child*/
-      if (pledge("stdio", NULL))
+      if (pledge("stdio rpath tty", NULL))
       	err(2, "pledge");
       close(imsg_fds[0]);
       imsgbuf child_ibuf;
@@ -38,7 +37,6 @@ int main(int argc, char *argv[])
       std::exit(do_display(&child_ibuf));
     }
 
-    /*parent*/
     close(imsg_fds[1]);
     close(0);
     close(1);
@@ -50,7 +48,7 @@ int main(int argc, char *argv[])
       const int sockfd = do_connect(argv[1], boost::lexical_cast<short>(argv[2]));
       if (pledge("stdio", NULL))
       	err(2, "pledge");
-      exit(do_read(&parent_ibuf, sockfd));
+      std::exit(do_read(&parent_ibuf, sockfd));
     }
   }
 }
