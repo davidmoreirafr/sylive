@@ -132,7 +132,10 @@ cpu_view(unsigned &line,
 }
 
 void
-proc_view(unsigned &line, std::string const& hostname, std::map<std::string, proc_t> procs, imsgbuf *user_ibuf) {
+proc_view(unsigned &line,
+	  std::string const& hostname,
+	  std::map<std::string, proc_t> procs,
+	  imsgbuf *user_ibuf) {
   char l[1024];
   for (std::pair<std::string, proc_t> proc: procs) {
     snprintf(l, 1023,
@@ -182,7 +185,10 @@ mem_view(unsigned &line, std::string const& hostname, mem_t const& mem, imsgbuf 
 }
 
 void
-show_nics(unsigned &line, std::string const& hostname, std::map<std::string, if_t> const& nics, imsgbuf *user_ibuf) {
+show_nics(unsigned &line,
+	  std::string const& hostname,
+	  std::map<std::string, if_t> const& nics,
+	  imsgbuf *user_ibuf) {
   char l[1024];
   bool first = true;
   for (std::pair<std::string, if_t> nic: nics) {
@@ -232,14 +238,16 @@ print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
   }
 
   if (param.show_procs) {
-    tell_user(line++, LEFT, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC", user_ibuf);
+    tell_user(line++, LEFT, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC",
+	      user_ibuf);
     for (std::pair<std::string, datum_t> datum: data)
       proc_view(line, datum.first, datum.second.procs, user_ibuf);
     line++;
   }
 
   if (param.show_nics) {
-    tell_user(line++, LEFT, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS", user_ibuf);
+    tell_user(line++, LEFT, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS",
+	      user_ibuf);
     for (std::pair<std::string, datum_t> datum: data)
       show_nics(line, datum.first, datum.second.nics, user_ibuf);
   }

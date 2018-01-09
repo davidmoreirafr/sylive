@@ -23,9 +23,9 @@ update_keys(imsgbuf *display_buf) {
     if (key == ERR)
       break;
 
-      compose(display_buf, IMSG_KEY, &key, sizeof key);
+    compose(display_buf, IMSG_KEY, &key, sizeof key);
 
-    // send key to display rpco
+    // send key to display proc
   }
 }
 
@@ -71,8 +71,10 @@ do_user(imsgbuf *display_ibuf) {
 	endwin();
 	err(1, "imsg_get");
       }
-      if (n == 0)
+      if (n == 0) {
+	endwin();
 	return 0; // Socket closed
+      }
 
       // Read the messages
       for (;;) {
@@ -93,6 +95,7 @@ do_user(imsgbuf *display_ibuf) {
 	  break;
 	}
 	default:
+	  endwin();
 	  err(1, "bad message type %d", imsg.hdr.type);
 	  break;
 	}

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string>
 #include <sstream>
 
@@ -12,8 +13,7 @@ void split(const std::string &s, char delim, Out result) {
 }
 
 inline
-void
-byte(char l[1024], long long ll) {
+void byte(char l[1024], long long ll) {
   const static char *unit = "\0kmgtep";
   int ct = 0;
   double d = ll;
@@ -28,8 +28,7 @@ byte(char l[1024], long long ll) {
 }
 
 inline
-double
-membyte(unsigned long long ll) {
+double membyte(unsigned long long ll) {
   double d = ll;
   do {
     d /= 1024;
@@ -38,8 +37,7 @@ membyte(unsigned long long ll) {
 }
 
 inline
-char
-membyte_unit(unsigned long long ll) {
+char membyte_unit(unsigned long long ll) {
   const static char *unit = " kmgtep";
   int ct = 0;
   double d = ll;
@@ -51,8 +49,7 @@ membyte_unit(unsigned long long ll) {
 }
 
 inline
-double
-byte(unsigned long long ll) {
+double byte(unsigned long long ll) {
   double d = ll;
   while (d > 9999) {
     d /= 1024;
@@ -61,8 +58,7 @@ byte(unsigned long long ll) {
 }
 
 inline
-char
-byte_unit(unsigned long long ll) {
+char byte_unit(unsigned long long ll) {
   const static char *unit = " kmgtep";
   int ct = 0;
   double d = ll;
@@ -74,8 +70,7 @@ byte_unit(unsigned long long ll) {
 }
 
 inline
-void
-compose(imsgbuf *ibuf, int type, void *data, int len) {
+void compose(imsgbuf *ibuf, int type, void const * data, int len) {
   imsg_compose(ibuf, type, 0, 0, -1, data, len);
   while (true) {
     int write = msgbuf_write(&ibuf->w);

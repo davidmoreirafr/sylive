@@ -24,6 +24,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include <type.hh>
+#include <utils.hh>
 
 #define SMALL_READ_BUF 1024
 
@@ -31,8 +32,7 @@
  * Method to read each line from the socket
  */
 
-int
-do_connect(std::string const& address, const short port) {
+int do_connect(std::string const& address, const short port) {
   struct sockaddr_in serv_addr;
  
   int sockfd;
@@ -48,14 +48,12 @@ do_connect(std::string const& address, const short port) {
 
   return sockfd;
 }
-
-int
-do_read(imsgbuf *ibuf, const int sockfd) {
+int do_read(imsgbuf *ibuf, const int sockfd) {
   char buf[SMALL_READ_BUF];
   std::vector<std::string> current_lines;
   current_lines.resize(1);
 
-  struct pollfd pfd[16]; //
+  struct pollfd pfd[16]; // FIXME: Manage add/remove fd
   int nfd = 1;
   int nready;
 
@@ -83,17 +81,7 @@ do_read(imsgbuf *ibuf, const int sockfd) {
 	  else {
 	    current_lines[0] += chunk.substr(0, find);
 	    chunk = chunk.substr(find + 1);
-	    imsg_compose(ibuf, IMSG_DATA, 0, 0, -1,
-			 current_lines[0].c_str(),
-			 current_lines[0].length() + 1);
-	    // write the message to the socket
-	    while (true) {
-	      int write = msgbuf_write(&ibuf->w);
-	      if (write == -1 && errno != EAGAIN)
-		err(1, "msgbuf_write");
-	      if (write == 0)
-		break;
-	    }
+	    compose(ibuf, IMSG_DATA, current_lines[0].c_str(), current_lines[0].length() + 1);
 	    current_lines[0] = "";
 	  }
 	}

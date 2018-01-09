@@ -15,16 +15,12 @@
 #include <view.hh>
 #include <user.hh>
 
-void
-close_std() {
+void close_std() {
   close(0);
   close(1);
   close(2);
 }
-
-// This thread manage the bullshit from/to the user.
-void
-fuck_user(int user_imsg_fds[2]) {
+void fuck_user(int user_imsg_fds[2]) {
   switch (fork()) {
   case -1:
     err(1, "fork");
@@ -38,9 +34,7 @@ fuck_user(int user_imsg_fds[2]) {
     std::exit(do_user(&display_ibuf)); // Ahah
   }
 }
-
-void
-fork_display(int imsg_fds[2]) {
+void fork_display(int imsg_fds[2]) {
   switch (fork()) {
   case -1:
     err(1, "fork");
@@ -70,9 +64,7 @@ fork_display(int imsg_fds[2]) {
     std::exit(do_display(&network_ibuf, &user_ibuf));
   }
 }
-
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   if (pledge("stdio inet proc rpath tty", NULL))
     err(2, "pledge");
 
