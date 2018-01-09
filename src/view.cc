@@ -25,6 +25,7 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <display.hh>
 #include <type.hh>
 #include <utils.hh>
 
@@ -95,13 +96,14 @@ cpu_view(unsigned &line,
 	 std::string const& hostname,
 	 std::vector<cpu_t> const& cpus) {
   double user, nice ,system, interrupt, idle;
+  char l[1024];
   user = nice = system = interrupt = idle = 0;
 
   int cpu_number = 0;
   bool first = true;
   for (cpu_t cpu: cpus) {
     if (param.detailed_cpu) {
-      mvprintw(line++, 0, "%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+      snprintf(l, 1024,"%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
       	       first ? hostname.c_str() : "\t",
       	       cpu_number,
       	       cpu.user,
@@ -109,6 +111,7 @@ cpu_view(unsigned &line,
       	       cpu.system,
       	       cpu.interrupt,
       	       cpu.idle);
+      tell_display(line++, LEFT, l);
       first = false;
     }
     user += cpu.user;
@@ -119,13 +122,14 @@ cpu_view(unsigned &line,
     ++cpu_number;
 
   }
-  mvprintw(line++, 0, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+  snprintf(l, 1024, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
   	   first ? hostname.c_str() : "\t",
   	   user / cpu_number,
   	   nice / cpu_number,
   	   system / cpu_number,
   	   interrupt / cpu_number,
   	   idle / cpu_number);
+  tell_display(line++, LEFT, l);
 }
 
 void
@@ -147,8 +151,7 @@ proc_view(unsigned &line, std::string const& hostname, std::map<std::string, pro
     strlcat(l, "\t", 1023);
     strlcat(l, proc.first.c_str(), 1023);
 
-    display(line++, LEFT, std::string(l););
-    // mvprintw(line++, 0, l);
+    tell_display(line++, LEFT, l);
   }
 }
 
@@ -156,7 +159,9 @@ void
 display_date(unsigned &line) {
   time_t tod = time(NULL);
   char *ctod = ctime(&tod);
-  mvprintw(line++, param.width - strlen(ctod) + 1, "%s", ctod);
+  char l[64];
+  snprintf(l, 64, "%s", ctod);
+  tell_display(line++, RIGHT, l);
 }
 
 void
@@ -175,7 +180,7 @@ mem_view(unsigned &line, std::string const& hostname, mem_t const& mem) {
 	   membyte(mem.swap_total),
 	   membyte_unit(mem.swap_total)
 	   );
-  mvprintw(line++, 0, l);
+  tell_display(line++, LEFT, l);
 }
 
 void
@@ -204,7 +209,7 @@ show_nics(unsigned &line, std::string const& hostname, std::map<std::string, if_
 	     byte_unit(nic.second.drops)
 	     );
     first = false;
-    mvprintw(line++, 0, l);
+    tell_display(line++, LEFT, l);
   }
 }
 
@@ -215,7 +220,7 @@ print(std::map<std::string, datum_t> data) {
   unsigned line = 0;
   display_date(line);
 
-  mvprintw(line++, 0, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE");
+  tell_display(line++, LEFT, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE");
   // display cpus
   for (std::pair<std::string, datum_t> datum: data)
     cpu_view(line, datum.first, datum.second.cpus);
@@ -223,7 +228,7 @@ print(std::map<std::string, datum_t> data) {
 
   if (param.show_mem) {
     // display mem
-    mvprintw(line++, 0, "Mem\t\tREAL\t\tFREE\tSWAP");
+    tell_display(line++, LEFT, "Mem\t\tREAL\t\tFREE\tSWAP");
     for (std::pair<std::string, datum_t> datum: data) {
       mem_view(line, datum.first, datum.second.mem);
     }
@@ -231,14 +236,14 @@ print(std::map<std::string, datum_t> data) {
   }
 
   if (param.show_procs) {
-    mvprintw(line++, 0, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC");
+    tell_display(line++, LEFT, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC");
     for (std::pair<std::string, datum_t> datum: data)
       proc_view(line, datum.first, datum.second.procs);
     line++;
   }
 
   if (param.show_nics) {
-    mvprintw(line++, 0, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS");
+    tell_display(line++, LEFT, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS");
     for (std::pair<std::string, datum_t> datum: data)
       show_nics(line, datum.first, datum.second.nics);
   }
