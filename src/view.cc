@@ -137,10 +137,11 @@ proc_view(unsigned &line,
 	  std::map<std::string, proc_t> procs,
 	  imsgbuf *user_ibuf) {
   char l[1024];
+  bool first = true;
   for (std::pair<std::string, proc_t> proc: procs) {
     snprintf(l, 1023,
 	     "%s\t%llu\t%llu\t%llu\t%llu\t%llu\t",
-	     hostname.c_str(),
+	     first ? hostname.c_str() : "\t",
 	     proc.second.uticks,
 	     proc.second.sticks,
 	     proc.second.iticks,
@@ -153,6 +154,8 @@ proc_view(unsigned &line,
     strlcat(l, proc.first.c_str(), 1023);
 
     tell_user(line++, LEFT, l, user_ibuf);
+
+    first = false;
   }
 }
 
