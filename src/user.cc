@@ -53,6 +53,7 @@ display_screen(std::map<int, Line> const& lines) {
       mvprintw(line.first, col, line.second.content);
     }
   }
+  move(0, 0);
   refresh();
 }
 
