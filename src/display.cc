@@ -8,8 +8,7 @@
 
 #include <curses.h>
 
-#include <display.hh>
-#include <type.hh>
+#include <fun.hh>
 
 void
 tell_user(int line, Placement placement, std::string const& value, imsgbuf *user_ibuf) {

@@ -1,4 +1,3 @@
-#include <listen.hh>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -23,7 +22,7 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <type.hh>
+#include <fun.hh>
 #include <utils.hh>
 
 #define SMALL_READ_BUF 1024

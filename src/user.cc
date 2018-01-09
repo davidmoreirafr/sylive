@@ -11,8 +11,7 @@
 
 #include <curses.h>
 
-#include <type.hh>
-#include <user.hh>
+#include <fun.hh>
 #include <utils.hh>
 
 void

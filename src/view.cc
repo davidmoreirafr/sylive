@@ -1,4 +1,3 @@
-#include <listen.hh>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -23,8 +22,7 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <display.hh>
-#include <type.hh>
+#include <fun.hh>
 #include <utils.hh>
 
 using host_t = std::string;
@@ -342,7 +340,7 @@ treat_line(std::string const& line, imsgbuf *user_ibuf) {
   print(data, user_ibuf);
 }
 
-void
+int
 do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
   {
     param.detailed_cpu = false;
@@ -361,7 +359,7 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
       err(1, "imsg_read");
     }
     if (n == 0) {
-      return;
+      return 0;
     }
 
     for (;;) {

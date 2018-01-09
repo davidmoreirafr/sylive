@@ -11,9 +11,7 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include <listen.hh>
-#include <view.hh>
-#include <user.hh>
+#include <fun.hh>
 
 void close_std() {
   close(0);
