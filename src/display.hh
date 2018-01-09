@@ -2,11 +2,9 @@
 
 #include <string>
 
-enum Placement {
-  LEFT,
-  CENTER,
-  RIGHT
-};
+#include <type.hh>
+
+struct imsgbuf;
 
 void
-tell_display(int line, Placement placement, std::string const& value);
+tell_user(int line, Placement placement, std::string const& value, imsgbuf *user_ibuf);

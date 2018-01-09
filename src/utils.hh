@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+#include <sstream>
 
 template<typename Out>
 void split(const std::string &s, char delim, Out result) {
@@ -69,4 +71,17 @@ byte_unit(unsigned long long ll) {
     ++ct;
   }
   return unit[ct];
+}
+
+inline
+void
+compose(imsgbuf *ibuf, int type, void *data, int len) {
+  imsg_compose(ibuf, type, 0, 0, -1, data, len);
+  while (true) {
+    int write = msgbuf_write(&ibuf->w);
+    if (write == -1 && errno != EAGAIN)
+      err(1, "msgbuf_write");
+    if (write == 0)
+      break;
+  }
 }

@@ -12,11 +12,11 @@
 #include <err.h>
 #include <sys/queue.h>
 #include <imsg.h>
+#include <poll.h>
 
 #include <iostream>
 #include <algorithm>
 #include <iterator>
-#include <sstream>
 #include <map>
 #include <list>
 #include <iomanip>
@@ -52,34 +52,51 @@ do_connect(std::string const& address, const short port) {
 int
 do_read(imsgbuf *ibuf, const int sockfd) {
   char buf[SMALL_READ_BUF];
-  std::string current_line;
+  std::vector<std::string> current_lines;
+  current_lines.resize(1);
 
-  int nb_read;
-  while ((nb_read = read(sockfd, buf, sizeof(buf) -1)) > 0) {
-    buf[nb_read] = 0;
-    std::string chunk(buf);
-    while (!chunk.empty()) {
-      auto find = chunk.find("\n");
+  struct pollfd pfd[16]; //
+  int nfd = 1;
+  int nready;
 
-      if (find == std::string::npos) {
-	current_line += chunk;
-	break;
-      }
-      else {
-	current_line += chunk.substr(0, find);
-	chunk = chunk.substr(find + 1);
-	imsg_compose(ibuf, IMSG_DATA,
-		     0, 0, -1,
-		     current_line.c_str(),
-		     current_line.length() + 1);
-	while (true) {
-	  int write = msgbuf_write(&ibuf->w);
-	  if (write == -1 && errno != EAGAIN)
-	    err(1, "msgbuf_write");
-	  if (write == 0)
+  pfd[0].fd = sockfd;
+  pfd[0].events = POLLIN;
+  while (true) {
+    nready = poll(pfd, nfd, 60 * 1000);
+    if (nready == -1)
+      err(1, "poll");
+    if (nready == 0)
+      continue;
+    for (int i = 0; i < nfd; ++i) {
+      if ((pfd[i].revents & (POLLERR|POLLNVAL)))
+	errx(1, "bad fd %d", pfd[i].fd);
+      if (pfd[i].revents & (POLLIN|POLLHUP)) {
+	int nb_read = read(pfd[i].fd, buf, sizeof(buf) -1);
+	buf[nb_read] = 0;
+	std::string chunk(buf);
+	while (!chunk.empty()) {
+	  auto find = chunk.find("\n");
+	  if (find == std::string::npos) {
+	    current_lines[i] += chunk;
 	    break;
+	  }
+	  else {
+	    current_lines[0] += chunk.substr(0, find);
+	    chunk = chunk.substr(find + 1);
+	    imsg_compose(ibuf, IMSG_DATA, 0, 0, -1,
+			 current_lines[0].c_str(),
+			 current_lines[0].length() + 1);
+	    // write the message to the socket
+	    while (true) {
+	      int write = msgbuf_write(&ibuf->w);
+	      if (write == -1 && errno != EAGAIN)
+		err(1, "msgbuf_write");
+	      if (write == 0)
+		break;
+	    }
+	    current_lines[0] = "";
+	  }
 	}
-	current_line = "";
       }
     }
   }
