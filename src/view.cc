@@ -102,13 +102,13 @@ cpu_view(unsigned &line,
   for (cpu_t cpu: cpus) {
     if (param.detailed_cpu) {
       mvprintw(line++, 0, "%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
-	       first ? hostname.c_str() : "\t",
-	       cpu_number,
-	       cpu.user,
-	       cpu.nice,
-	       cpu.system,
-	       cpu.interrupt,
-	       cpu.idle);
+      	       first ? hostname.c_str() : "\t",
+      	       cpu_number,
+      	       cpu.user,
+      	       cpu.nice,
+      	       cpu.system,
+      	       cpu.interrupt,
+      	       cpu.idle);
       first = false;
     }
     user += cpu.user;
@@ -120,12 +120,12 @@ cpu_view(unsigned &line,
 
   }
   mvprintw(line++, 0, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
-	   first ? hostname.c_str() : "\t",
-	   user / cpu_number,
-	   nice / cpu_number,
-	   system / cpu_number,
-	   interrupt / cpu_number,
-	   idle / cpu_number);
+  	   first ? hostname.c_str() : "\t",
+  	   user / cpu_number,
+  	   nice / cpu_number,
+  	   system / cpu_number,
+  	   interrupt / cpu_number,
+  	   idle / cpu_number);
 }
 
 void
@@ -147,7 +147,8 @@ proc_view(unsigned &line, std::string const& hostname, std::map<std::string, pro
     strlcat(l, "\t", 1023);
     strlcat(l, proc.first.c_str(), 1023);
 
-    mvprintw(line++, 0, l);
+    display(line++, LEFT, std::string(l););
+    // mvprintw(line++, 0, l);
   }
 }
 

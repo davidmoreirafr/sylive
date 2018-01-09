@@ -31,11 +31,11 @@ rule ok
 rule ko
      command = ./checks 42 $in
 
-build $outdir/display.o: cpp $srcdir/display.cc
 build $outdir/listen.o: cpp $srcdir/listen.cc
 build $outdir/sylive.o: cpp $srcdir/sylive.cc
+build $outdir/view.o: cpp $srcdir/view.cc
 
 build sylive: lcpp $
- $outdir/display.o $
  $outdir/listen.o $
- $outdir/sylive.o
+ $outdir/sylive.o $
+ $outdir/view.o
