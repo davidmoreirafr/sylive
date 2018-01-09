@@ -137,14 +137,13 @@ proc_view(unsigned &line, std::string const& hostname, std::map<std::string, pro
   char l[1024];
   for (std::pair<std::string, proc_t> proc: procs) {
     snprintf(l, 1023,
-	     "%s\t%d\t%d\t%d\t%d\t%d\t",
+	     "%s\t%llu\t%llu\t%llu\t%llu\t%llu\t",
 	     hostname.c_str(),
 	     proc.second.uticks,
 	     proc.second.sticks,
 	     proc.second.iticks,
 	     proc.second.cpusec,
-	     proc.second.cpupct,
-	     proc.first.c_str());
+	     proc.second.cpupct);
     byte(l, proc.second.procsz);
     strlcat(l, "\t", 1023);
     byte(l, proc.second.rsssz);
