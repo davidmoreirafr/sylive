@@ -21,6 +21,24 @@ close_std() {
   close(2);
 }
 
+void
+fork_display(int imsg_fds[2]) {
+  switch (fork()) {
+  case -1:
+    err(1, "fork");
+  case 0:
+    if (pledge("stdio rpath tty", NULL))
+      err(2, "pledge");
+
+    close(imsg_fds[0]);
+    imsgbuf network_ibuf;
+    imsg_init(&network_ibuf, imsg_fds[1]);
+
+    // FIXME: create user_ibuf
+    std::exit(do_display(&network_ibuf)); // FIXME: user_ibuf));
+  }
+}
+
 int main(int argc, char *argv[])
 {
   if (pledge("stdio inet proc rpath tty", NULL))
@@ -32,29 +50,17 @@ int main(int argc, char *argv[])
     if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, imsg_fds) == -1)
       err(2, "socketpair");
 
-    switch (fork()) {
-    case -1:
-      err(1, "fork");
-    case 0:
-      if (pledge("stdio rpath tty", NULL))
-      	err(2, "pledge");
-
-      close(imsg_fds[0]);
-      imsgbuf child_ibuf;
-      imsg_init(&child_ibuf, imsg_fds[1]);
-
-      std::exit(do_display(&child_ibuf));
-    }
+    fork_display(imsg_fds);
 
     close(imsg_fds[1]);
     close_std();
-    imsgbuf parent_ibuf;
-    imsg_init(&parent_ibuf, imsg_fds[0]);
+    imsgbuf display_ibuf;
+    imsg_init(&display_ibuf, imsg_fds[0]);
     {
       const int sockfd = do_connect(argv[1], boost::lexical_cast<short>(argv[2]));
-      if (pledge("stdio", NULL))
+      if (pledge("stdio inet", NULL))
       	err(2, "pledge");
-      std::exit(do_read(&parent_ibuf, sockfd));
+      std::exit(do_read(&display_ibuf, sockfd));
     }
   }
 }
