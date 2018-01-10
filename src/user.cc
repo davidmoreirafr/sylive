@@ -104,8 +104,6 @@ do_user(imsgbuf *display_ibuf) {
       }
       display_screen(lines);
     }
-    clear();
-    mvprintw(0, 0, "FIXME!");
-    refresh();
+    update_keys(display_ibuf);
   }
 }
