@@ -23,8 +23,6 @@ update_keys(imsgbuf *display_buf) {
       break;
 
     compose(display_buf, IMSG_KEY, &key, sizeof key);
-
-    // send key to display proc
   }
 }
 
