@@ -19,7 +19,7 @@ enum Placement {
 struct Line {
   int line;
   Placement placement;
-  char content[1024];
+  char content[256];
 };
 
 void tell_user(int line, Placement placement, std::string const& value, imsgbuf *user_ibuf);

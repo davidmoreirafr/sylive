@@ -12,18 +12,21 @@
 #include <sys/queue.h>
 #include <imsg.h>
 #include <sys/syslog.h>
+#include <poll.h>
 
 #include <iostream>
 #include <algorithm>
 #include <iterator>
 #include <map>
 #include <list>
-#include <iomanip>
 
 #include <boost/lexical_cast.hpp>
 
 #include <fun.hh>
 #include <utils.hh>
+
+#define BUF_SIZE 1024
+char l[BUF_SIZE];
 
 using host_t = std::string;
 
@@ -82,6 +85,7 @@ struct param_t {
   bool show_mem;
   bool show_procs;
   bool show_nics;
+  bool help;
   unsigned width, height;
 };
 
@@ -93,14 +97,13 @@ cpu_view(unsigned &line,
 	 std::vector<cpu_t> const& cpus,
 	 imsgbuf *user_ibuf) {
   double user, nice ,system, interrupt, idle;
-  char l[1024];
   user = nice = system = interrupt = idle = 0;
 
   int cpu_number = 0;
   bool first = true;
   for (cpu_t cpu: cpus) {
     if (param.detailed_cpu) {
-      snprintf(l, 1024,"%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+      snprintf(l, BUF_SIZE,"%s\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
       	       first ? hostname.c_str() : "\t",
       	       cpu_number,
       	       cpu.user,
@@ -119,7 +122,7 @@ cpu_view(unsigned &line,
     ++cpu_number;
 
   }
-  snprintf(l, 1024, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
+  snprintf(l, BUF_SIZE, "%s\t \t%.2f\t%.2f\t%.2f\t%.2f\t\t%.2f",
   	   first ? hostname.c_str() : "\t",
   	   user / cpu_number,
   	   nice / cpu_number,
@@ -134,10 +137,9 @@ proc_view(unsigned &line,
 	  std::string const& hostname,
 	  std::map<std::string, proc_t> procs,
 	  imsgbuf *user_ibuf) {
-  char l[1024];
   bool first = true;
   for (std::pair<std::string, proc_t> proc: procs) {
-    snprintf(l, 1023,
+    snprintf(l, BUF_SIZE - 1,
 	     "%s\t%llu\t%llu\t%llu\t%llu\t%llu\t",
 	     first ? hostname.c_str() : "\t",
 	     proc.second.uticks,
@@ -146,11 +148,10 @@ proc_view(unsigned &line,
 	     proc.second.cpusec,
 	     proc.second.cpupct);
     byte(l, proc.second.procsz);
-    strlcat(l, "\t", 1023);
+    strlcat(l, "\t", BUF_SIZE - 1);
     byte(l, proc.second.rsssz);
-    strlcat(l, "\t", 1023);
-    strlcat(l, proc.first.c_str(), 1023);
-
+    strlcat(l, "\t", BUF_SIZE - 1);
+    strlcat(l, proc.first.c_str(), BUF_SIZE - 1);
     tell_user(line++, LEFT, l, user_ibuf);
 
     first = false;
@@ -161,15 +162,13 @@ void
 display_date(unsigned &line, imsgbuf *user_ibuf) {
   time_t tod = time(NULL);
   char *ctod = ctime(&tod);
-  char l[64];
-  snprintf(l, 64, "%s", ctod);
+  snprintf(l, BUF_SIZE - 1, "%s", ctod);
   tell_user(line++, RIGHT, l, user_ibuf);
 }
 
 void
 mem_view(unsigned &line, std::string const& hostname, mem_t const& mem, imsgbuf *user_ibuf) {
-  char l[1024];
-  snprintf(l, 1024, "%s\t%.0f%c/%.0f%c\t%.0f%c\t%.0f%c/%.0f%c",
+  snprintf(l, BUF_SIZE, "%s\t%.0f%c/%.0f%c\t%.0f%c\t%.0f%c/%.0f%c",
 	   hostname.c_str(),
 	   membyte(mem.real_active),
 	   membyte_unit(mem.real_active),
@@ -190,10 +189,9 @@ show_nics(unsigned &line,
 	  std::string const& hostname,
 	  std::map<std::string, if_t> const& nics,
 	  imsgbuf *user_ibuf) {
-  char l[1024];
   bool first = true;
   for (std::pair<std::string, if_t> nic: nics) {
-    snprintf(l, 1024, "%s\t%s\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c",
+    snprintf(l, BUF_SIZE, "%s\t%s\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c\t%.0f%c",
 	     first ? hostname.c_str() : "\t",
 	     nic.first.c_str(),
 	     membyte(nic.second.ipackets),
@@ -218,40 +216,59 @@ show_nics(unsigned &line,
   }
 }
 
+#define TELL(LINE) tell_user(line++, LEFT, LINE, user_ibuf)
 void
 print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
+  static unsigned old_line = 0;
   unsigned line = 0;
   display_date(line, user_ibuf);
 
-  tell_user(line++, LEFT, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE", user_ibuf);
-  // display cpus
-  for (std::pair<std::string, datum_t> datum: data)
-    cpu_view(line, datum.first, datum.second.cpus, user_ibuf);
-  tell_user(line++, LEFT, "", user_ibuf);
+  if (param.help) {
+    TELL("These single-character commands are available");
+    TELL("");
+    TELL("c\t- Toggle CPU details");
+    TELL("m\t- Toggle memory display");
+    TELL("n\t- Toggle interfaces display");
+    TELL("p\t- Toggle processus display");
+    TELL("?\t- Show this text");
+    TELL("");
+    TELL("Hit any key to continue...");
+  }
+  else {
 
-  if (param.show_mem) {
-    // display mem
-    tell_user(line++, LEFT, "Mem\t\tREAL\t\tFREE\tSWAP", user_ibuf);
-    for (std::pair<std::string, datum_t> datum: data) {
-      mem_view(line, datum.first, datum.second.mem, user_ibuf);
-    }
+    tell_user(line++, LEFT, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE", user_ibuf);
+    // display cpus
+    for (std::pair<std::string, datum_t> datum: data)
+      cpu_view(line, datum.first, datum.second.cpus, user_ibuf);
     tell_user(line++, LEFT, "", user_ibuf);
-  }
 
-  if (param.show_procs) {
-    tell_user(line++, LEFT, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC",
-	      user_ibuf);
-    for (std::pair<std::string, datum_t> datum: data)
-      proc_view(line, datum.first, datum.second.procs, user_ibuf);
-    line++;
-  }
+    if (param.show_mem) {
+      // display mem
+      tell_user(line++, LEFT, "Mem\t\tREAL\t\tFREE\tSWAP", user_ibuf);
+      for (std::pair<std::string, datum_t> datum: data) {
+	mem_view(line, datum.first, datum.second.mem, user_ibuf);
+      }
+      tell_user(line++, LEFT, "", user_ibuf);
+    }
 
-  if (param.show_nics) {
-    tell_user(line++, LEFT, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS",
-	      user_ibuf);
-    for (std::pair<std::string, datum_t> datum: data)
-      show_nics(line, datum.first, datum.second.nics, user_ibuf);
+    if (param.show_procs) {
+      tell_user(line++, LEFT, "Procs\t\tUTICKS\tSTICKS\tITICKS\tCPUSEC\tCPUCT\tPROCSZ\tRSSSZ\tPROC",
+		user_ibuf);
+      for (std::pair<std::string, datum_t> datum: data)
+	proc_view(line, datum.first, datum.second.procs, user_ibuf);
+      tell_user(line++, LEFT, "", user_ibuf);
+    }
+
+    if (param.show_nics) {
+      tell_user(line++, LEFT, "Nics\t\tIFACE\tIPKTS\tOPKTS\tIBYTES\tOBYTES\tIERR\tOERR\tCOLL\tDROPS",
+		user_ibuf);
+      for (std::pair<std::string, datum_t> datum: data)
+	show_nics(line, datum.first, datum.second.nics, user_ibuf);
+    }
   }
+  for (unsigned i = line; i < old_line; ++i)
+    tell_user(i, LEFT, "", user_ibuf);
+  old_line = line;
 }
 
 double
@@ -340,6 +357,33 @@ treat_line(std::string const& line, imsgbuf *user_ibuf) {
   print(data, user_ibuf);
 }
 
+void
+update_parameters(int key) {
+  if (param.help) {
+    param.help = false;
+    return;
+  }
+  switch (key) {
+  case 'c':
+    param.detailed_cpu = !param.detailed_cpu;
+    break;
+  case 'm':
+    param.show_mem = !param.show_mem;
+    break;
+  case 'n':
+    param.show_nics = !param.show_nics;
+    break;
+  case 'p':
+    param.show_procs = !param.show_procs;
+    break;
+  case '?':
+    param.help = true;
+    break;
+  case 'q':
+    std::exit(0);
+  }
+}
+
 int
 do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
   {
@@ -347,39 +391,60 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
     param.show_mem = true;
     param.show_procs = true;
     param.show_nics = false;
+    param.help = false;
   }
 
+  struct pollfd pfd[2];
+  pfd[0].fd = net_ibuf->fd;
+  pfd[0].events = POLLIN;
+
+  pfd[1].fd = user_ibuf->fd;
+  pfd[1].events = POLLIN;
+
+  imsgbuf *ibufs[2];
+  ibufs[0] = net_ibuf;
+  ibufs[1] = user_ibuf;
 
   for (;;) {
-    imsg imsg;
-    int n;
+    int nready = poll(pfd, 2, 60*1000);
+    if (nready == -1)
+      err(1, "poll");
+    if (nready == 0)
+      continue;
+    for (int i = 0; i < 2; ++i) {
+      if ((pfd[i].revents & (POLLERR|POLLNVAL)))
+	errx(1, "bad fd %d", pfd[i].fd);
+      if (pfd[i].revents & (POLLIN|POLLHUP)) {
+	int n = imsg_read(ibufs[i]);
+	if (n == -1 && errno != EAGAIN)
+	  errx(1, "imsg_read %d", i);
+	if (n == 0)
+	  return 0;
+	for (;;) {
+	  imsg imsg;
+	  n = imsg_get(ibufs[i], &imsg);
+	  if (n == -1)
+	    errx(1, "imsg_get %d", i);
+	  if (n == 0)
+	    break;
 
-    n = imsg_read(net_ibuf);
-    if (n == -1 && errno != EAGAIN) {
-      err(1, "imsg_read");
-    }
-    if (n == 0) {
-      return 0;
-    }
-
-    for (;;) {
-      n = imsg_get(net_ibuf, &imsg);
-      if (n ==  -1)
-	err(1, "imsg_get");
-      if (n == 0)
-	break;
-
-      switch (imsg.hdr.type) {
-      case IMSG_DATA: {
-	// FIXME: Should handle corrupt data!
-	std::string line((char *)imsg.data);
-	treat_line(line, user_ibuf);
-	break;
+	  switch (imsg.hdr.type) {
+	  case IMSG_DATA: {
+	    assert(i == 0);
+	    std::string line((char *)imsg.data);
+	    treat_line(line, user_ibuf);
+	    break;
+	  }
+	  case IMSG_KEY:
+	    assert(i == 1);
+	    update_parameters(*((int *) imsg.data));
+	    break;
+	  default:
+	    std::exit(3);
+	  }
+	  imsg_free(&imsg);
+	}
       }
-      default:
-	std::exit(3);
-      }
-      imsg_free(&imsg);
     }
   }
 }

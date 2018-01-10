@@ -15,7 +15,7 @@ tell_user(int line, Placement placement, std::string const& value, imsgbuf *user
   Line l;
   l.line = line;
   l.placement = placement;
-  strncpy(l.content, value.c_str(), 1024);
+  strncpy(l.content, value.c_str(), sizeof l.content);
   imsg_compose(user_ibuf, IMSG_LINE, 0, 0, -1, &l, sizeof l);
   while (true) {
     int write = msgbuf_write(&user_ibuf->w);

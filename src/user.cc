@@ -62,46 +62,44 @@ do_user(imsgbuf *display_ibuf) {
   nodelay(stdscr, TRUE);
   noecho();
 
-  while (true) {
+  for (;;) {
+    int n = imsg_read(display_ibuf);
+    if (n == -1) {
+      endwin();
+      err(1, "imsg_get");
+    }
+    if (n == 0) {
+      endwin();
+      return 0; // Socket closed
+    }
+
+    // Read the messages
     for (;;) {
-      int n = imsg_read(display_ibuf);
+      imsg imsg;
+      n = imsg_get(display_ibuf, &imsg);
       if (n == -1) {
 	endwin();
 	err(1, "imsg_get");
       }
-      if (n == 0) {
+      if (n == 0)
+	break;
+
+      switch (imsg.hdr.type) {
+      case IMSG_LINE: {
+	// FIXME: Check corrupt data
+	Line *l = (Line *)imsg.data;
+	lines[l->line] = *l;
+	break;
+      }
+      default:
 	endwin();
-	return 0; // Socket closed
+	err(1, "bad message type %d", imsg.hdr.type);
+	break;
       }
 
-      // Read the messages
-      for (;;) {
-	imsg imsg;
-	n = imsg_get(display_ibuf, &imsg);
-	if (n == -1) {
-	  endwin();
-	  err(1, "imsg_get");
-	}
-	if (n == 0)
-	  break;
-
-	switch (imsg.hdr.type) {
-	case IMSG_LINE: {
-	  // FIXME: Check corrupt data
-	  Line *l = (Line *)imsg.data;
-	  lines[l->line] = *l;
-	  break;
-	}
-	default:
-	  endwin();
-	  err(1, "bad message type %d", imsg.hdr.type);
-	  break;
-	}
-
-	imsg_free(&imsg);
-      }
-      display_screen(lines);
+      imsg_free(&imsg);
     }
     update_keys(display_ibuf);
+    display_screen(lines);
   }
 }
