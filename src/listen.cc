@@ -52,7 +52,7 @@ int do_read(imsgbuf *ibuf, const int sockfd) {
   std::vector<std::string> current_lines;
   current_lines.resize(1);
 
-  struct pollfd pfd[16]; // FIXME: Manage add/remove fd
+  struct pollfd pfd[1]; // FIXME: Manage add/remove fd
   int nfd = 1;
   int nready;
 
