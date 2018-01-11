@@ -5,17 +5,51 @@
 #include <stdint.h>
 #include <imsg.h>
 #include <err.h>
+#include <stdlib.h>
+#include <errno.h>
 
 #include <curses.h>
 
-#include <fun.hh>
-#include <utils.hh>
+// FIXME
+int do_read(struct imsgbuf *ibuf, const int sockfd);
+int do_user(struct imsgbuf *display_ibuf);
+int do_display(struct imsgbuf *net_ibuf, struct imsgbuf *user_ibuf);
+//#include <utils.hh>
+static
+void compose(struct imsgbuf *ibuf, int type, void const * data, int len) {
+  imsg_compose(ibuf, type, 0, 0, -1, data, len);
+  while (true) {
+    int write = msgbuf_write(&ibuf->w);
+    if (write == -1 && errno != EAGAIN)
+      err(1, "msgbuf_write");
+    if (write == 0)
+      break;
+  }
+}
 
-static Line *lines = NULL;
+enum imsg_type {
+  IMSG_DATA,
+  IMSG_LINE,
+  IMSG_KEY
+};
+
+enum Placement {
+  LEFT,
+  CENTER,
+  RIGHT
+};
+
+struct Line {
+  int line;
+  enum Placement placement;
+  char content[128];
+};
+
+static struct Line *lines = NULL;
 int line_number = 0;
 
 void
-update_keys(imsgbuf *display_buf) {
+update_keys(struct imsgbuf *display_buf) {
   while (true) {
     int key = getch();
 
@@ -28,8 +62,9 @@ update_keys(imsgbuf *display_buf) {
 
 void
 display_screen() {
+  int i; // FIXME
   clear();
-  for (int i = 0; i < line_number; ++i) {
+  for (i = 0; i < line_number; ++i) {
     if (lines[i].line != 0) {
       int col;
       switch (lines[i].placement) {
@@ -56,7 +91,7 @@ display_screen() {
 
 
 int
-do_user(imsgbuf *display_ibuf) {
+do_user(struct imsgbuf *display_ibuf) {
   // init screen
   initscr();
   nodelay(stdscr, TRUE);
@@ -75,7 +110,7 @@ do_user(imsgbuf *display_ibuf) {
 
     // Read the messages
     for (;;) {
-      imsg imsg;
+      struct imsg imsg;
       n = imsg_get(display_ibuf, &imsg);
       if (n == -1) {
 	endwin();
@@ -88,11 +123,11 @@ do_user(imsgbuf *display_ibuf) {
       case IMSG_LINE: {
 	if (line_number != LINES) {
 	  free(lines);
-	  lines = (Line *) calloc(LINES, sizeof (Line));
-	  memset(lines, 0, sizeof(Line) * LINES);
+	  lines = (struct Line *) calloc(LINES, sizeof (struct Line));
+	  memset(lines, 0, sizeof(struct Line) * LINES);
 	  line_number = LINES;
 	}
-	  Line *l = (Line *)imsg.data;	
+	struct Line *l = (struct Line *)imsg.data;	
 	if (line_number > l->line) {
 	  lines[l->line] = *l;
 	}

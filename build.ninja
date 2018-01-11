@@ -39,7 +39,7 @@ rule ko
 
 build $outdir/listen.o: cpp $srcdir/listen.cc
 build $outdir/sylive.o: cc $srcdir/sylive.c
-build $outdir/user.o: cpp $srcdir/user.cc
+build $outdir/user.o: cc $srcdir/user.c
 build $outdir/view.o: cpp $srcdir/view.cc
 
 build sylive: lcpp $
