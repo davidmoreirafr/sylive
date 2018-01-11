@@ -420,46 +420,36 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
   ibufs[0] = net_ibuf;
   ibufs[1] = user_ibuf;
 
-  for (;;) {
-    int nready = poll(pfd, 2, 60*1000);
-    if (nready == -1)
-      err(1, "poll");
-    if (nready == 0)
-      continue;
-    for (int i = 0; i < 2; ++i) {
-      if ((pfd[i].revents & (POLLERR|POLLNVAL)))
-	errx(1, "bad fd %d", pfd[i].fd);
-      if (pfd[i].revents & (POLLIN|POLLHUP)) {
-	int n = imsg_read(ibufs[i]);
-	if (n == -1 && errno != EAGAIN)
-	  errx(1, "imsg_read %d", i);
+  network_read(pfd, 2, [&](unsigned i) {
+      int n = imsg_read(ibufs[i]);
+      if (n == -1 && errno != EAGAIN)
+	errx(1, "imsg_read %d", i);
+      if (n == 0)
+	return 0;
+      for (;;) {
+	imsg imsg;
+	n = imsg_get(ibufs[i], &imsg);
+	if (n == -1)
+	  errx(1, "imsg_get %d", i);
 	if (n == 0)
-	  return 0;
-	for (;;) {
-	  imsg imsg;
-	  n = imsg_get(ibufs[i], &imsg);
-	  if (n == -1)
-	    errx(1, "imsg_get %d", i);
-	  if (n == 0)
-	    break;
+	  break;
 
-	  switch (imsg.hdr.type) {
-	  case IMSG_DATA: {
-	    assert(i == 0);
-	    std::string line((char *)imsg.data);
-	    treat_line(line, user_ibuf);
-	    break;
-	  }
-	  case IMSG_KEY:
-	    assert(i == 1);
-	    update_parameters(*((int *) imsg.data));
-	    break;
-	  default:
-	    std::exit(3);
-	  }
-	  imsg_free(&imsg);
+	switch (imsg.hdr.type) {
+	case IMSG_DATA: {
+	  assert(i == 0);
+	  std::string line((char *)imsg.data);
+	  treat_line(line, user_ibuf);
+	  break;
 	}
+	case IMSG_KEY:
+	  assert(i == 1);
+	  update_parameters(*((int *) imsg.data));
+	  break;
+	default:
+	  std::exit(3);
+	}
+	imsg_free(&imsg);
       }
-    }
-  }
+    });
 }
+

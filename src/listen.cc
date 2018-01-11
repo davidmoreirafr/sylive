@@ -11,7 +11,6 @@
 #include <err.h>
 #include <sys/queue.h>
 #include <imsg.h>
-#include <poll.h>
 
 #include <iostream>
 #include <algorithm>
@@ -54,38 +53,26 @@ int do_read(imsgbuf *ibuf, const int sockfd) {
 
   struct pollfd pfd[1]; // FIXME: Manage add/remove fd
   int nfd = 1;
-  int nready;
-
   pfd[0].fd = sockfd;
   pfd[0].events = POLLIN;
-  while (true) {
-    nready = poll(pfd, nfd, 60 * 1000);
-    if (nready == -1)
-      err(1, "poll");
-    if (nready == 0)
-      continue;
-    for (int i = 0; i < nfd; ++i) {
-      if ((pfd[i].revents & (POLLERR|POLLNVAL)))
-	errx(1, "bad fd %d", pfd[i].fd);
-      if (pfd[i].revents & (POLLIN|POLLHUP)) {
-	int nb_read = read(pfd[i].fd, buf, sizeof(buf) -1);
-	buf[nb_read] = 0;
-	std::string chunk(buf);
-	while (!chunk.empty()) {
-	  auto find = chunk.find("\n");
-	  if (find == std::string::npos) {
-	    current_lines[i] += chunk;
-	    break;
-	  }
-	  else {
-	    current_lines[0] += chunk.substr(0, find);
-	    chunk = chunk.substr(find + 1);
-	    compose(ibuf, IMSG_DATA, current_lines[0].c_str(), current_lines[0].length() + 1);
-	    current_lines[0] = "";
-	  }
+
+  network_read(pfd, nfd, [&](unsigned i) {
+      int nb_read = read(pfd[i].fd, buf, sizeof(buf) -1);
+      buf[nb_read] = 0;
+      std::string chunk(buf);
+      while (!chunk.empty()) {
+	auto find = chunk.find("\n");
+	if (find == std::string::npos) {
+	  current_lines[i] += chunk;
+	  break;
 	}
-      }
-    }
-  }
+	else {
+	  current_lines[0] += chunk.substr(0, find);
+	  chunk = chunk.substr(find + 1);
+	  compose(ibuf, IMSG_DATA, current_lines[0].c_str(), current_lines[0].length() + 1);
+	  current_lines[0] = "";
+	}
+      }      
+    });
   return -1;
 }
