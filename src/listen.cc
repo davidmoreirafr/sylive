@@ -12,14 +12,7 @@
 #include <sys/queue.h>
 #include <imsg.h>
 
-#include <iostream>
-#include <algorithm>
-#include <iterator>
-#include <map>
-#include <list>
-#include <iomanip>
-
-#include <boost/lexical_cast.hpp>
+#include <vector>
 
 #include <fun.hh>
 #include <utils.hh>
@@ -30,22 +23,6 @@
  * Method to read each line from the socket
  */
 
-int do_connect(std::string const& address, const short port) {
-  struct sockaddr_in serv_addr;
- 
-  int sockfd;
-  if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    err(1, "listen");
- 
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(port);
-  serv_addr.sin_addr.s_addr = inet_addr(address.c_str());
- 
-  if(connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    err(1, "listen");
-
-  return sockfd;
-}
 int do_read(imsgbuf *ibuf, const int sockfd) {
   char buf[SMALL_READ_BUF];
   std::vector<std::string> current_lines;

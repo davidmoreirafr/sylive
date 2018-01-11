@@ -5,19 +5,39 @@
 #include <imsg.h>
 #include <err.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
-#include <iomanip>
-#include <iostream>
 
-#include <boost/lexical_cast.hpp>
+int do_read(struct imsgbuf *ibuf, const int sockfd);
+int do_user(struct imsgbuf *display_ibuf);
+int do_display(struct imsgbuf *net_ibuf, struct imsgbuf *user_ibuf);
 
-#include <fun.hh>
+int do_connect(char * address, const short port) {
+  struct sockaddr_in serv_addr;
+ 
+  int sockfd;
+  if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    err(1, "listen");
+ 
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(port);
+  serv_addr.sin_addr.s_addr = inet_addr(address);
+ 
+  if(connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    err(1, "listen");
+
+  return sockfd;
+}
 
 void close_std() {
   close(0);
   close(1);
   close(2);
 }
+
 void fuck_user(int user_imsg_fds[2]) {
   switch (fork()) {
   case -1:
@@ -27,9 +47,9 @@ void fuck_user(int user_imsg_fds[2]) {
       err(2, "pledge");
 
     close(user_imsg_fds[0]);
-    imsgbuf display_ibuf;
+    struct imsgbuf display_ibuf;
     imsg_init(&display_ibuf, user_imsg_fds[1]);
-    std::exit(do_user(&display_ibuf)); // Ahah
+    exit(do_user(&display_ibuf)); // Ahah
   }
 }
 void fork_display(int imsg_fds[2]) {
@@ -41,7 +61,7 @@ void fork_display(int imsg_fds[2]) {
       err(2, "pledge");
 
     close(imsg_fds[0]);
-    imsgbuf network_ibuf;
+    struct imsgbuf network_ibuf;
     imsg_init(&network_ibuf, imsg_fds[1]);
 
     // Create the user processus
@@ -56,10 +76,10 @@ void fork_display(int imsg_fds[2]) {
 
     close(user_imsg_fds[1]);
     close_std();
-    imsgbuf user_ibuf;
+    struct imsgbuf user_ibuf;
     imsg_init(&user_ibuf, user_imsg_fds[0]);
 
-    std::exit(do_display(&network_ibuf, &user_ibuf));
+    exit(do_display(&network_ibuf, &user_ibuf));
   }
 }
 int main(int argc, char *argv[]) {
@@ -76,13 +96,19 @@ int main(int argc, char *argv[]) {
 
     close(imsg_fds[1]);
     close_std();
-    imsgbuf display_ibuf;
+    struct imsgbuf display_ibuf;
     imsg_init(&display_ibuf, imsg_fds[0]);
     {
-      const int sockfd = do_connect(argv[1], boost::lexical_cast<short>(argv[2]));
+      const char *errstr = 0;
+      short port = strtonum(argv[2], 1, 65536, &errstr);
+      if (errstr != NULL)
+	errx(1, "port number is %s: %s", errstr, argv[1]);
+
+      const int sockfd = do_connect(argv[1], port);
       if (pledge("stdio inet", NULL))
       	err(2, "pledge");
-      std::exit(do_read(&display_ibuf, sockfd));
+      exit(do_read(&display_ibuf, sockfd));
     }
   }
+  return 42;
 }

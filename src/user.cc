@@ -6,13 +6,13 @@
 #include <imsg.h>
 #include <err.h>
 
-#include <map>
-#include <iostream>
-
 #include <curses.h>
 
 #include <fun.hh>
 #include <utils.hh>
+
+static Line *lines = NULL;
+int line_number = 0;
 
 void
 update_keys(imsgbuf *display_buf) {
@@ -27,37 +27,37 @@ update_keys(imsgbuf *display_buf) {
 }
 
 void
-display_screen(std::map<int, Line> const& lines) {
+display_screen() {
   clear();
-  for(std::pair<int, Line> line: lines) {
-    if (line.first < LINES) {
+  for (int i = 0; i < line_number; ++i) {
+    if (lines[i].line != 0) {
       int col;
-      switch (line.second.placement) {
+      switch (lines[i].placement) {
       case LEFT:
 	col = 0;
 	break;
       case CENTER:
-	col = (COLS - strlen(line.second.content)) / 2;
+	col = (COLS - strlen(lines[i].content)) / 2;
 	break;
       case RIGHT:
-	col = COLS - strlen(line.second.content) + 1;
+	col = COLS - strlen(lines[i].content) + 1;
       }
       if (col < 0)
 	col = 0;
       if (col > COLS)
 	col = COLS;
 
-      mvprintw(line.first, col, line.second.content);
+      mvprintw(i, col, lines[i].content);
     }
   }
   move(0, 0);
   refresh();
 }
 
+
 int
 do_user(imsgbuf *display_ibuf) {
-  std::map<int, Line> lines;
-  // // init screen
+  // init screen
   initscr();
   nodelay(stdscr, TRUE);
   noecho();
@@ -70,7 +70,7 @@ do_user(imsgbuf *display_ibuf) {
     }
     if (n == 0) {
       endwin();
-      return 0; // Socket closed
+      return 0;
     }
 
     // Read the messages
@@ -86,9 +86,16 @@ do_user(imsgbuf *display_ibuf) {
 
       switch (imsg.hdr.type) {
       case IMSG_LINE: {
-	// FIXME: Check corrupt data
-	Line *l = (Line *)imsg.data;
-	lines[l->line] = *l;
+	if (line_number != LINES) {
+	  free(lines);
+	  lines = (Line *) calloc(LINES, sizeof (Line));
+	  memset(lines, 0, sizeof(Line) * LINES);
+	  line_number = LINES;
+	}
+	  Line *l = (Line *)imsg.data;	
+	if (line_number > l->line) {
+	  lines[l->line] = *l;
+	}
 	break;
       }
       default:
@@ -100,6 +107,6 @@ do_user(imsgbuf *display_ibuf) {
       imsg_free(&imsg);
     }
     update_keys(display_ibuf);
-    display_screen(lines);
+    display_screen();
   }
 }

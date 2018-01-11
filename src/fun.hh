@@ -2,8 +2,6 @@
 
 #include <poll.h>
 
-#include <string>
-
 struct imsgbuf;
 
 enum imsg_type {
@@ -20,15 +18,15 @@ enum Placement {
 
 struct Line {
   int line;
-  Placement placement;
-  char content[256];
+  enum Placement placement;
+  char content[128];
 };
 
-void tell_user(int line, Placement placement, std::string const& value, imsgbuf *user_ibuf);
-int do_connect(std::string const& address, const short port);
-int do_read(imsgbuf *ibuf, const int sockfd);
-int do_user(imsgbuf *display_ibuf);
-int do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf);
+extern "C" {
+  int do_read(struct imsgbuf *ibuf, const int sockfd);
+  int do_user(struct imsgbuf *display_ibuf);
+  int do_display(struct imsgbuf *net_ibuf, struct imsgbuf *user_ibuf);
+}
 
 template <typename Function>
 void

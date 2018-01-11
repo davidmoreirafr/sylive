@@ -14,9 +14,6 @@
 #include <sys/syslog.h>
 #include <poll.h>
 
-#include <iostream>
-#include <algorithm>
-#include <iterator>
 #include <map>
 #include <list>
 
@@ -261,9 +258,8 @@ print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
     TELL("Hit any key to continue...");
   }
   else {
-
-    tell_user(line++, LEFT, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE", user_ibuf);
     // display cpus
+    tell_user(line++, LEFT, "Cpu\t\t#\tUSER\tNICE\tSYSTEM\tINTERRUPT\tIDLE", user_ibuf);
     for (std::pair<std::string, datum_t> datum: data)
       cpu_view(line, datum.first, datum.second.cpus, user_ibuf);
     tell_user(line++, LEFT, "", user_ibuf);
@@ -433,7 +429,7 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
       if (n == -1 && errno != EAGAIN)
 	errx(1, "imsg_read %d", i);
       if (n == 0)
-	return 0;
+	std::exit(0);
       for (;;) {
 	imsg imsg;
 	n = imsg_get(ibufs[i], &imsg);
@@ -459,5 +455,6 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
 	imsg_free(&imsg);
       }
     });
+  return -1;
 }
 

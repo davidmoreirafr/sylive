@@ -2,12 +2,18 @@ outdir = ./_build
 srcdir = ./src
 testsdir = ./tests
 cxxflags = -Wall -Wextra -std=gnu++14 -I$srcdir -I$outdir -fPIC -g -ggdb
+ccflags = -Wall -Wextra -I$srcdir -I$outdir -fPIC -g -ggdb
 ldflags = -L$outdir/ -lutil -lcurses
 cpp=eg++
+cc=egcc
 rule cpp
      depfile = $out.d
      command = $cpp $cxxflags -MMD -MF $out.d -c $in -o $out
      description = $cpp -o $out
+rule cc
+     depfile = $out.d
+     command = $cc $ccflags -MMD -MF $out.d -c $in -o $out
+     description = $cc -o $out
 
 rule lcpp
      description = $cpp -o $out
@@ -32,7 +38,7 @@ rule ko
      command = ./checks 42 $in
 
 build $outdir/listen.o: cpp $srcdir/listen.cc
-build $outdir/sylive.o: cpp $srcdir/sylive.cc
+build $outdir/sylive.o: cc $srcdir/sylive.c
 build $outdir/user.o: cpp $srcdir/user.cc
 build $outdir/view.o: cpp $srcdir/view.cc
 
