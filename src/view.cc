@@ -140,20 +140,19 @@ proc_view(unsigned &line,
   bool first = true;
   for (std::pair<std::string, proc_t> proc: procs) {
     snprintf(l, BUF_SIZE - 1,
-	     "%s\t%llu\t%llu\t%llu\t%llu\t%llu\t",
+	     "%s\t%llu\t%llu\t%llu\t%llu\t%llu\t%.0f%c\t%.0f%c\t%s",
 	     first ? hostname.c_str() : "\t",
 	     proc.second.uticks,
 	     proc.second.sticks,
 	     proc.second.iticks,
 	     proc.second.cpusec,
-	     proc.second.cpupct);
-    byte(l, proc.second.procsz);
-    strlcat(l, "\t", BUF_SIZE - 1);
-    byte(l, proc.second.rsssz);
-    strlcat(l, "\t", BUF_SIZE - 1);
-    strlcat(l, proc.first.c_str(), BUF_SIZE - 1);
+	     proc.second.cpupct,
+	     byte(proc.second.procsz),
+	     byte_unit(proc.second.procsz),
+	     byte(proc.second.rsssz),
+	     byte_unit(proc.second.rsssz),
+	     proc.first.c_str());
     tell_user(line++, LEFT, l, user_ibuf);
-
     first = false;
   }
 }
