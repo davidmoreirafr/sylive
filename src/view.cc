@@ -47,8 +47,6 @@ char l[BUF_SIZE];
 using host_t = std::string;
 
 struct cpu_t {
-  long long date;
-
   float user;
   float nice;
   float system;
@@ -85,14 +83,27 @@ struct mem_t {
   unsigned long long free;
   unsigned long long swap_used;
   unsigned long long swap_total;
+
+  mem_t()
+    : real_active(0)
+    , real_total(0)
+    , free(0)
+    , swap_used(0)
+    , swap_total(0) {}
 };
 
 struct datum_t {
+  char tick; // delete the data after the size of map
   std::vector<cpu_t> cpus;
   std::map<std::string, double> sensors;
   std::map<std::string, if_t> nics;
   std::map<std::string, proc_t> procs;
   mem_t mem;
+
+  datum_t()
+    : tick(0) {
+    cpus.resize(4); // FIXME
+  }
 };
 
 
@@ -286,13 +297,11 @@ print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
   old_line = line;
 }
 
-double
-todouble(std::string const& str) {
+double tod(std::string const& str) {
   return boost::lexical_cast<double>(str);
 }
 
-unsigned long long
-toull(std::string const& str) {
+unsigned long long toull(std::string const& str) {
   return boost::lexical_cast<unsigned long long>(str);
 }
 
@@ -300,7 +309,6 @@ void
 treat_line(std::string const& line, imsgbuf *user_ibuf) {
   static std::map<host_t, datum_t> data;
   datum_t datum;
-  datum.cpus.resize(4); // FIXME
 
   std::list<std::string> splitted_line;
   split(line, ';', std::back_inserter(splitted_line));
@@ -318,40 +326,39 @@ treat_line(std::string const& line, imsgbuf *user_ibuf) {
 
     if (measure[0] == "cpu") {
       int cpu = boost::lexical_cast<int>(measure[1]);
-      datum.cpus[cpu].date
-	= boost::lexical_cast<long long>(measure[2]);
 
-      datum.cpus[cpu].user = todouble(measure[3]);
-      datum.cpus[cpu].nice = todouble(measure[4]);
-      datum.cpus[cpu].system = todouble(measure[5]);
-      datum.cpus[cpu].interrupt = todouble(measure[6]);
-      datum.cpus[cpu].idle = todouble(measure[7]);
+      datum.cpus[cpu].user = tod(measure[3]);
+      datum.cpus[cpu].nice = tod(measure[4]);
+      datum.cpus[cpu].system = tod(measure[5]);
+      datum.cpus[cpu].interrupt = tod(measure[6]);
+      datum.cpus[cpu].idle = tod(measure[7]);
     }
     else if (measure[0] == "if") {
       const std::string nic = measure[1];
-      datum.nics[nic].ipackets = todouble(measure[2]);
-      datum.nics[nic].opackets = todouble(measure[3]);
-      datum.nics[nic].ibytes = todouble(measure[4]);
-      datum.nics[nic].obytes = todouble(measure[5]);
-      datum.nics[nic].imcasts = todouble(measure[6]);
-      datum.nics[nic].omcasts = todouble(measure[7]);
-      datum.nics[nic].ierrors = todouble(measure[8]);
-      datum.nics[nic].oerrors = todouble(measure[9]);
-      datum.nics[nic].collisions = todouble(measure[10]);
-      datum.nics[nic].drops = todouble(measure[11]);
 
+      datum.nics[nic].ipackets = tod(measure[2]);
+      datum.nics[nic].opackets = tod(measure[3]);
+      datum.nics[nic].ibytes = tod(measure[4]);
+      datum.nics[nic].obytes = tod(measure[5]);
+      datum.nics[nic].imcasts = tod(measure[6]);
+      datum.nics[nic].omcasts = tod(measure[7]);
+      datum.nics[nic].ierrors = tod(measure[8]);
+      datum.nics[nic].oerrors = tod(measure[9]);
+      datum.nics[nic].collisions = tod(measure[10]);
+      datum.nics[nic].drops = tod(measure[11]);
     }
     else if (measure[0] == "sensor") {
-      datum.sensors[measure[1]] = todouble(measure[3]);
+      datum.sensors[measure[1]] = tod(measure[3]);
     }
     else if (measure[0] == "proc") {
-      datum.procs[measure[1]].uticks = todouble(measure[4]);
-      datum.procs[measure[1]].sticks = todouble(measure[5]);
-      datum.procs[measure[1]].iticks = todouble(measure[6]);
-      datum.procs[measure[1]].cpusec = todouble(measure[7]);
-      datum.procs[measure[1]].cpupct = todouble(measure[8]);
-      datum.procs[measure[1]].procsz = todouble(measure[9]);
-      datum.procs[measure[1]].rsssz = todouble(measure[10]);      
+      const std::string proc = measure[1];
+      datum.procs[proc].uticks = tod(measure[4]);
+      datum.procs[proc].sticks = tod(measure[5]);
+      datum.procs[proc].iticks = tod(measure[6]);
+      datum.procs[proc].cpusec = tod(measure[7]);
+      datum.procs[proc].cpupct = tod(measure[8]);
+      datum.procs[proc].procsz = tod(measure[9]);
+      datum.procs[proc].rsssz = tod(measure[10]);
     }
     else if (measure[0] == "mem") {
       datum.mem.real_active = toull(measure[3]);
@@ -361,13 +368,13 @@ treat_line(std::string const& line, imsgbuf *user_ibuf) {
       datum.mem.swap_total = toull(measure[7]);
     }
     else if (measure[0] == "pf") {
-      // i don't care about pf
+      // FIXME: i don't care about pf
     }
     else {
-      syslog(LOG_EMERG, "unknow message %s", measure[0].c_str());
+      //syslog(LOG_DEBUG, "unknow message %s", measure[0].c_str());
     }
   }
-  
+
   data[host] = datum;
   print(data, user_ibuf);
 }
@@ -378,6 +385,7 @@ update_parameters(int key) {
     param.help = false;
     return;
   }
+
   switch (key) {
   case 'c':
     param.detailed_cpu = !param.detailed_cpu;
