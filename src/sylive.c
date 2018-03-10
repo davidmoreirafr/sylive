@@ -27,7 +27,7 @@ int do_connect(char * address, const short port) {
   serv_addr.sin_addr.s_addr = inet_addr(address);
  
   if(connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    err(1, "listen");
+    err(51, "listen");
 
   return sockfd;
 }
@@ -52,11 +52,12 @@ void fuck_user(int user_imsg_fds[2]) {
     exit(do_user(&display_ibuf)); // Ahah
   }
 }
-void fork_display(int imsg_fds[2]) {
+void fork_display(int imsg_fds[2], int connection_socket) {
   switch (fork()) {
   case -1:
     err(1, "fork");
   case 0:
+    close(connection_socket);
     if (pledge("stdio proc rpath tty", NULL))
       err(2, "pledge");
 
@@ -87,24 +88,23 @@ int main(int argc, char *argv[]) {
     err(2, "pledge");
 
   if (argc == 3) {
+    const char *errstr = 0;
     int imsg_fds[2];
+    short port = strtonum(argv[2], 1, 65536, &errstr);
+    const int sockfd = do_connect(argv[1], port);
+    if (errstr != NULL)
+      errx(1, "port number is %s: %s", errstr, argv[1]);
 
     if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, imsg_fds) == -1)
       err(2, "socketpair");
 
-    fork_display(imsg_fds);
+    fork_display(imsg_fds, sockfd);
 
     close(imsg_fds[1]);
     close_std();
     struct imsgbuf display_ibuf;
     imsg_init(&display_ibuf, imsg_fds[0]);
     {
-      const char *errstr = 0;
-      short port = strtonum(argv[2], 1, 65536, &errstr);
-      if (errstr != NULL)
-	errx(1, "port number is %s: %s", errstr, argv[1]);
-
-      const int sockfd = do_connect(argv[1], port);
       if (pledge("stdio inet", NULL))
       	err(2, "pledge");
       exit(do_read(&display_ibuf, sockfd));

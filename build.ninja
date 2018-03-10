@@ -2,7 +2,7 @@ outdir = ./_build
 srcdir = ./src
 testsdir = ./tests
 cxxflags = -Wall -Wextra -std=gnu++14 -I$srcdir -I$outdir -fPIC -g -ggdb
-ccflags = -Wall -Wextra -I$srcdir -I$outdir -fPIC -g -ggdb
+ccflags = -Wall -Wextra -std=c11 -I$srcdir -I$outdir -fPIC -g -ggdb
 ldflags = -L$outdir/ -lutil -lcurses
 cpp=eg++
 cc=egcc

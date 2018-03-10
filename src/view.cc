@@ -10,7 +10,9 @@
 #include <arpa/inet.h>
 #include <err.h>
 #include <sys/queue.h>
+__BEGIN_DECLS
 #include <imsg.h>
+__END_DECLS
 #include <sys/syslog.h>
 #include <poll.h>
 
@@ -26,6 +28,7 @@ void
 tell_user(int line, Placement placement, std::string const& value, imsgbuf *user_ibuf) {
   Line l;
   l.line = line;
+  l.refresh = true;
   l.placement = placement;
   strncpy(l.content, value.c_str(), sizeof l.content);
   imsg_compose(user_ibuf, IMSG_LINE, 0, 0, -1, &l, sizeof l);
@@ -109,11 +112,13 @@ struct param_t {
   bool show_mem;
   bool show_procs;
   bool show_nics;
+  bool show_sensors;
   bool help;
   unsigned width, height;
 };
 
 static param_t param;
+static std::map<host_t, datum_t> data;
 
 void
 cpu_view(unsigned &line,
@@ -239,6 +244,22 @@ show_nics(unsigned &line,
   }
 }
 
+void
+show_sensors(unsigned &line,
+	     std::string const& hostname,
+	     std::map<std::string, double> const& sensors, imsgbuf *user_ibuf) {
+  bool first = true;
+  for (std::pair<std::string, double> sensor: sensors) {
+    snprintf(l, BUF_SIZE, "%s\t%s%s\t%.2f",
+	     first ? hostname.c_str() : "\t",
+	     sensor.first.c_str(),
+	     sensor.first.length() > 16 ? "" : "\t",
+	     sensor.second);
+    tell_user(line++, LEFT, l, user_ibuf);
+    first = false;
+  }
+}
+
 #define TELL(LINE) tell_user(line++, LEFT, LINE, user_ibuf)
 void
 print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
@@ -249,11 +270,12 @@ print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
   if (param.help) {
     TELL("These single-character commands are available");
     TELL("");
-    TELL("c\t- Toggle CPU details");
-    TELL("m\t- Toggle memory display");
-    TELL("n\t- Toggle interfaces display");
-    TELL("p\t- Toggle processus display");
-    TELL("?\t- Show this text");
+    TELL(" c\t- Toggle CPU details");
+    TELL(" m\t- Toggle memory display");
+    TELL(" n\t- Toggle interfaces display");
+    TELL(" p\t- Toggle processus display");
+    TELL(" s\t- Toggle sensors display");
+    TELL(" ?\t- Show this text");
     TELL("");
     TELL("Hit any key to continue...");
   }
@@ -286,6 +308,14 @@ print(std::map<std::string, datum_t> data, imsgbuf *user_ibuf) {
 		user_ibuf);
       for (std::pair<std::string, datum_t> datum: data)
 	show_nics(line, datum.first, datum.second.nics, user_ibuf);
+      tell_user(line++, LEFT, "", user_ibuf);
+    }
+
+    if (param.show_sensors) {
+      tell_user(line++, LEFT, "Sensors\t\tNAME\t\t\tVALUE", user_ibuf);
+      for (std::pair<std::string, datum_t> datum: data)
+	show_sensors(line, datum.first, datum.second.sensors, user_ibuf);
+      tell_user(line++, LEFT, "", user_ibuf);
     }
   }
   for (unsigned i = line; i < old_line; ++i)
@@ -301,9 +331,9 @@ unsigned long long toull(std::string const& str) {
   return boost::lexical_cast<unsigned long long>(str);
 }
 
+
 void
-treat_line(std::string const& line, imsgbuf *user_ibuf) {
-  static std::map<host_t, datum_t> data;
+treat_line(std::string const& line) {
   datum_t datum;
 
   std::list<std::string> splitted_line;
@@ -372,7 +402,6 @@ treat_line(std::string const& line, imsgbuf *user_ibuf) {
   }
 
   data[host] = datum;
-  print(data, user_ibuf);
 }
 
 void
@@ -395,6 +424,9 @@ update_parameters(int key) {
   case 'p':
     param.show_procs = !param.show_procs;
     break;
+  case 's':
+    param.show_sensors = !param.show_sensors;
+    break;
   case '?':
     param.help = true;
     break;
@@ -410,6 +442,7 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
     param.show_mem = true;
     param.show_procs = true;
     param.show_nics = false;
+    param.show_sensors = true;
     param.help = false;
   }
 
@@ -442,12 +475,14 @@ do_display(imsgbuf *net_ibuf, imsgbuf *user_ibuf) {
 	case IMSG_DATA: {
 	  assert(i == 0);
 	  std::string line((char *)imsg.data);
-	  treat_line(line, user_ibuf);
+	  treat_line(line);
+	  print(data, user_ibuf);
 	  break;
 	}
 	case IMSG_KEY:
 	  assert(i == 1);
 	  update_parameters(*((int *) imsg.data));
+	  print(data, user_ibuf);
 	  break;
 	default:
 	  std::exit(3);

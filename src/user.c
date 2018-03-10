@@ -42,6 +42,7 @@ enum Placement {
 struct Line {
   int line;
   enum Placement placement;
+  bool refresh;
   char content[128];
 };
 
@@ -62,10 +63,9 @@ update_keys(struct imsgbuf *display_buf) {
 
 void
 display_screen() {
-  int i; // FIXME
-  clear();
-  for (i = 0; i < line_number; ++i) {
-    if (lines[i].line != 0) {
+  for (int i = 0; i < line_number; ++i) {
+    if (lines[i].line != 0 && lines[i].refresh) {
+      lines[i].refresh = false;
       int col;
       switch (lines[i].placement) {
       case LEFT:
@@ -81,8 +81,8 @@ display_screen() {
 	col = 0;
       if (col > COLS)
 	col = COLS;
-
       mvprintw(i, col, lines[i].content);
+      clrtoeol();
     }
   }
   move(0, 0);

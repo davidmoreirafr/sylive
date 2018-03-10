@@ -10,7 +10,9 @@
 #include <arpa/inet.h>
 #include <err.h>
 #include <sys/queue.h>
+__BEGIN_DECLS
 #include <imsg.h>
+__END_DECLS
 
 #include <vector>
 

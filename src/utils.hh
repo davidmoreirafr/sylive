@@ -53,6 +53,7 @@ char byte_unit(unsigned long long ll) {
   return unit[ct];
 }
 
+// FIXME: Should be C only
 inline
 void compose(imsgbuf *ibuf, int type, void const * data, int len) {
   imsg_compose(ibuf, type, 0, 0, -1, data, len);
