@@ -2,33 +2,6 @@
 
 #include <poll.h>
 
-struct imsgbuf;
-
-enum imsg_type {
-  IMSG_DATA,
-  IMSG_LINE,
-  IMSG_KEY
-};
-
-enum Placement {
-  LEFT,
-  CENTER,
-  RIGHT
-};
-
-struct Line {
-  int line;
-  enum Placement placement;
-  bool refresh;
-  char content[128];
-};
-
-extern "C" {
-  int do_read(struct imsgbuf *ibuf, const int sockfd);
-  int do_user(struct imsgbuf *display_ibuf);
-  int do_display(struct imsgbuf *net_ibuf, struct imsgbuf *user_ibuf);
-}
-
 template <typename Function>
 void
 network_read(pollfd *pfd, const unsigned nfd, Function fun) {

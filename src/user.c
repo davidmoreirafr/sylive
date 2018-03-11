@@ -10,41 +10,7 @@
 
 #include <curses.h>
 
-// FIXME
-int do_read(struct imsgbuf *ibuf, const int sockfd);
-int do_user(struct imsgbuf *display_ibuf);
-int do_display(struct imsgbuf *net_ibuf, struct imsgbuf *user_ibuf);
-//#include <utils.hh>
-static
-void compose(struct imsgbuf *ibuf, int type, void const * data, int len) {
-  imsg_compose(ibuf, type, 0, 0, -1, data, len);
-  while (true) {
-    int write = msgbuf_write(&ibuf->w);
-    if (write == -1 && errno != EAGAIN)
-      err(1, "msgbuf_write");
-    if (write == 0)
-      break;
-  }
-}
-
-enum imsg_type {
-  IMSG_DATA,
-  IMSG_LINE,
-  IMSG_KEY
-};
-
-enum Placement {
-  LEFT,
-  CENTER,
-  RIGHT
-};
-
-struct Line {
-  int line;
-  enum Placement placement;
-  bool refresh;
-  char content[128];
-};
+#include <utils.h>
 
 static struct Line *lines = NULL;
 int line_number = 0;
@@ -89,7 +55,6 @@ display_screen() {
   refresh();
 }
 
-
 int
 do_user(struct imsgbuf *display_ibuf) {
   // init screen
@@ -98,6 +63,8 @@ do_user(struct imsgbuf *display_ibuf) {
   noecho();
 
   for (;;) {
+    update_keys(display_ibuf);
+    display_screen();
     int n = imsg_read(display_ibuf);
     if (n == -1) {
       endwin();
@@ -141,7 +108,5 @@ do_user(struct imsgbuf *display_ibuf) {
 
       imsg_free(&imsg);
     }
-    update_keys(display_ibuf);
-    display_screen();
   }
 }

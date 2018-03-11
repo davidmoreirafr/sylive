@@ -1,17 +1,8 @@
-#pragma once
+#include <errno.h>
+#include <err.h>
 
-#include <sstream>
+#include <utils.h>
 
-template<typename Out>
-void split(const std::string &s, char delim, Out result) {
-    std::stringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim)) {
-        *(result++) = item;
-    }
-}
-
-inline
 double membyte(unsigned long long ll) {
   double d = ll;
   do {
@@ -20,9 +11,8 @@ double membyte(unsigned long long ll) {
   return d;
 }
 
-inline
 char membyte_unit(unsigned long long ll) {
-  const static char *unit = " kmgtep";
+  static const char *unit = " kmgtep";
   int ct = 0;
   double d = ll;
   do {
@@ -32,7 +22,6 @@ char membyte_unit(unsigned long long ll) {
   return unit[ct];
 }
 
-inline
 double byte(unsigned long long ll) {
   double d = ll;
   while (d > 9999) {
@@ -41,9 +30,8 @@ double byte(unsigned long long ll) {
   return d;
 }
 
-inline
 char byte_unit(unsigned long long ll) {
-  const static char *unit = " kmgtep";
+  static const char *unit = " kmgtep";
   int ct = 0;
   double d = ll;
   while (d > 9999) {
@@ -53,11 +41,9 @@ char byte_unit(unsigned long long ll) {
   return unit[ct];
 }
 
-// FIXME: Should be C only
-inline
-void compose(imsgbuf *ibuf, int type, void const * data, int len) {
+void compose(struct imsgbuf *ibuf, int type, void const * data, int len) {
   imsg_compose(ibuf, type, 0, 0, -1, data, len);
-  while (true) {
+  while (1) {
     int write = msgbuf_write(&ibuf->w);
     if (write == -1 && errno != EAGAIN)
       err(1, "msgbuf_write");
@@ -65,3 +51,4 @@ void compose(imsgbuf *ibuf, int type, void const * data, int len) {
       break;
   }
 }
+

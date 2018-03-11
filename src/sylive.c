@@ -27,7 +27,7 @@ int do_connect(char * address, const short port) {
   serv_addr.sin_addr.s_addr = inet_addr(address);
  
   if(connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    err(51, "listen");
+    err(1, "listen");
 
   return sockfd;
 }
@@ -110,5 +110,5 @@ int main(int argc, char *argv[]) {
       exit(do_read(&display_ibuf, sockfd));
     }
   }
-  return 42;
+  return 2;
 }

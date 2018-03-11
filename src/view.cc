@@ -18,11 +18,22 @@ __END_DECLS
 
 #include <map>
 #include <list>
+#include <sstream>
 
 #include <boost/lexical_cast.hpp>
 
 #include <fun.hh>
-#include <utils.hh>
+#include <utils.h>
+
+
+template<typename Out>
+void split(const std::string &s, char delim, Out result) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        *(result++) = item;
+    }
+}
 
 void
 tell_user(int line, Placement placement, std::string const& value, imsgbuf *user_ibuf) {

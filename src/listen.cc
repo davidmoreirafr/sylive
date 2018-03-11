@@ -15,9 +15,10 @@ __BEGIN_DECLS
 __END_DECLS
 
 #include <vector>
+#include <string>
 
 #include <fun.hh>
-#include <utils.hh>
+#include <utils.h>
 
 #define SMALL_READ_BUF 1024
 
